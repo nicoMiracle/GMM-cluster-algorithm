@@ -1,2 +1,4 @@
 1. create virual environment
-2. add scikit-learn, numpy, pandas, matplotlib, seaborn, jupyter dependencies
+2. add scikit-learn, numpy, pandas, matplotlib, seaborn, jupyter, wheel, cython, setuptools, scipy, scikit-surprise dependencies
+3. scikit-surprise works on python 3.9.9
+4. install Microsoft C++ Build Tools - Desktop development with C++ (check a lot of stuff)
