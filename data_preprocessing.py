@@ -20,14 +20,18 @@ def preprocess_data():
     print(f"Total dublicate user movies: {duplicate_user_movie.sum()}")
     if duplicate_user_movie.any():
         ratings = ratings.groupby(['UserID', 'MovieID'], as_index=False)['Rating'].mean()
+    
+    num_users = ratings['UserID'].nunique()
+    num_movies = ratings['MovieID'].nunique()
+    print(f"Unfiltered dataset contains {num_users} users and {num_movies} movies.")
 
     # Step 3: Filter active users and popular movies
     user_counts = ratings['UserID'].value_counts()
-    selected_users = user_counts[user_counts >= 100].sample(n=500, random_state=42).index
+    selected_users = user_counts[user_counts >= 100].index
     ratings = ratings[ratings['UserID'].isin(selected_users)]
 
     movie_counts = ratings['MovieID'].value_counts()
-    selected_movies = movie_counts[movie_counts >= 50].sample(n=300, random_state=42).index
+    selected_movies = movie_counts[movie_counts >= 50].index
     ratings = ratings[ratings['MovieID'].isin(selected_movies)]
 
     num_users = ratings['UserID'].nunique()
