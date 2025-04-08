@@ -2,3 +2,4 @@
 2. add scikit-learn, numpy, pandas, matplotlib, seaborn, jupyter, wheel, cython, setuptools, scipy, scikit-surprise dependencies
 3. scikit-surprise works on python 3.9.9
 4. install Microsoft C++ Build Tools - Desktop development with C++ (check a lot of stuff)
+5. Run first data_preprocessing.py to save processed data as csv files and avoid running it again 
