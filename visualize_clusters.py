@@ -66,6 +66,6 @@ def visualize_gmm_clusters(train_set, cluster_labels, gmm, number_of_clusters, s
 if __name__ == "__main__":
     k=6
     print(f"\nRunning GMM clustering and visualization for k={k}...")
-    train_labels, gmm, train_set = gmm_clustering(k)
+    train_labels, gmm, train_set = gmm_clustering("training_set.csv","test_set.csv",k)
     visualize_gmm_clusters(train_set, train_labels, gmm, k)
     

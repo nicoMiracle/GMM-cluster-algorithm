@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def gmm_clustering(number_of_clusters):
+def gmm_clustering(train_ds,test_ds,number_of_clusters):
   
   #Load preprocessed and split data
-  train_set = pd.read_csv('datasets/processed_train_dataset.csv', index_col=0)
-  test_set = pd.read_csv('datasets/processed_test_dataset.csv', index_col=0)  
+  train_set = pd.read_csv(train_ds, index_col=0)
+  test_set = pd.read_csv(test_ds, index_col=0)  
  
   #Apply GMM to training set only
   gmm = GaussianMixture(n_components=number_of_clusters, covariance_type='full',  random_state=42)
