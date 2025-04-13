@@ -16,7 +16,7 @@ def clean_column(ratingDataSetPath,column):
         if column in dataSet.columns:
             
             dataSet.drop(columns=column,axis=1,inplace=True)
-            dataSet.to_csv('ratings_cleaned.csv', index=False)
+            dataSet.to_csv(ratingDataSetPath, index=False)
             print("Dropped")
     else:
         print("path to dataset does not exist")
@@ -40,7 +40,7 @@ def operation_data_sampling(ratingPath, file_name, fraction_value, rand_sta_valu
 
         sampled_portion = dataset.groupby('rating_bins', group_keys=False).apply(lambda x: x.sample(frac=fraction_value, random_state=rand_sta_value))
 
-        sampled_portion = sampled_portion.drop(columns=['rating_bins'])
+        sampled_portion = sampled_portion.drop(columns=['rating_bins','TimeStamp'])
 
         sampled_portion.to_csv(file_name, index=False)
 
