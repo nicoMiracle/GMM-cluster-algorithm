@@ -115,6 +115,7 @@ def matrix_sparsity(matrix_path):
     matrix = panda.read_csv(matrix_path)
     total = matrix.size
     print(matrix.shape)
+    print(matrix.head(10))
     non_zero = (matrix != 0).sum().sum()
     return 100 * (1 - non_zero / total)
 
@@ -128,7 +129,7 @@ def split_train_test(datasetPath,train_file_name,test_file_name,rand_sta):
 
 
 def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta,pca_components,max_gmm_comp):
-    train_dataset = panda.read_csv(dataset_path)
+    train_dataset = panda.read_csv(dataset_path,index_col=0)
 
     #fit into PCA
     pca = PCA(n_components=pca_components)  # keep 95% of variance
@@ -161,7 +162,7 @@ def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta,pca_components,max_gmm_c
     matplot.savefig(fig_name)
     matplot.show()
 
-#Step one check for duplicates and remove them
+"""#Step one check for duplicates and remove them
 orig_dataset_path = 'datasets/ratings.csv'
 dataset_witho_duplicates = "ratings_no_dup.csv"
 check_duplicates(orig_dataset_path, dataset_witho_duplicates)
@@ -183,12 +184,19 @@ test_file_name = "test_set.csv"
 split_train_test(dataset_sampled,training_file_name,test_file_name,42)
 
 #Step 5 - Create matrix and fill it in with KNN imputer - this will take several minutes
-output_matrix_file = "filled_matrix.csv"
-fill_matrix(training_file_name,output_matrix_file,6)
+output_matrix_file_train = "filled_matrix_train.csv"
+fill_matrix(training_file_name,output_matrix_file_train,6)
+output_matrix_file_test = "filled_matrix_test.csv"
+fill_matrix(test_file_name,output_matrix_file_test,6)
+
 
 #Step 6 - check matrix sparsity
-matrix_sparsity(output_matrix_file)
+matrix_sparsity(output_matrix_file_train)
+matrix_sparsity(output_matrix_file_test)
 
 #Step 7 - Test AIC BIC - this will take a bit
-output_matrix_file = "filled_matrix.csv"
-test_bic_aic(output_matrix_file,"BIC_AIC distribution",500,42,0.95,50)
+
+test_bic_aic(output_matrix_file_train,"BIC_AIC distribution",500,42,0.95,50)"""
+
+data = panda.read_csv("filled_matrix_train.csv",index_col=0)
+print(data.head(10))
