@@ -27,11 +27,11 @@ def draw_ellipse(position, covariance, ax=None, **kwargs):
                              **kwargs))
 
 
-def visualize_gmm_clusters(train_set, cluster_labels, gmm, number_of_clusters, save_dir="clustering_images"):
+def visualize_gmm_clusters(train_set, cluster_labels, gmm, number_of_clusters,pca_rand, save_dir="clustering_images"):
     os.makedirs(save_dir, exist_ok=True)
 
     # Reduce to 2D with PCA
-    pca = PCA(n_components=2)
+    pca = PCA(n_components=2,random_state=pca_rand)
     X_principal = pd.DataFrame(pca.fit_transform(train_set.values), columns=['P1', 'P2'])
     centers_2d = pca.transform(gmm.means_)
 
@@ -44,7 +44,6 @@ def visualize_gmm_clusters(train_set, cluster_labels, gmm, number_of_clusters, s
                c='red', s=200, marker='*', label='Centers', edgecolors='black', linewidths=1.2)
 
     # Plot ellipses around each GMM component
-    w_factor = 0.2 / gmm.weights_.max()
     for i, (mean, covar, w) in enumerate(zip(gmm.means_, gmm.covariances_, gmm.weights_)):
         mean_2d = pca.transform(mean.reshape(1, -1))[0]
         cov_2d = pca.components_ @ covar @ pca.components_.T
@@ -60,12 +59,9 @@ def visualize_gmm_clusters(train_set, cluster_labels, gmm, number_of_clusters, s
 
     filename = f"{save_dir}/gmm_pca_scatter_k{number_of_clusters}.png"
     plt.savefig(filename, dpi=300, bbox_inches='tight')
-    plt.show()
-    print(f"✅ Saved cluster plot with ellipses to {filename}")
 
-if __name__ == "__main__":
-    k=6
-    print(f"\nRunning GMM clustering and visualization for k={k}...")
-    train_labels, gmm, train_set = gmm_clustering("training_set.csv","test_set.csv",k)
-    visualize_gmm_clusters(train_set, train_labels, gmm, k)
+def run_gmm_visualization(train_file, test_file, k,pca_rand):
+    print(f"\nVisualization for cluster ={k}...")
+    train_labels, gmm, train_set = gmm_clustering(train_file, test_file, k)
+    visualize_gmm_clusters(train_set, train_labels, gmm, k,pca_rand)
     

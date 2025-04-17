@@ -14,11 +14,12 @@ def gmm_clustering(train_ds,test_ds,number_of_clusters):
   test_set = pd.read_csv(test_ds, index_col=0)  
  
   #Apply GMM to training set only
-  gmm = GaussianMixture(n_components=number_of_clusters, covariance_type='full',  random_state=42)
+  gmm = GaussianMixture(n_components=number_of_clusters, covariance_type='full',max_iter=500,  random_state=42)
   gmm.fit(train_set.values)
   
 
   #Predict clusters
+  
   train_labels = gmm.predict(train_set.values)
   test_labels = gmm.predict(test_set.values)
 
