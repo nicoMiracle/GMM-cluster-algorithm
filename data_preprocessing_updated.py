@@ -80,10 +80,13 @@ def fill_matrix_knn(train_dataset_path, test_dataset_path, output_file_name, knn
 
     # fit the imputer on the training data
     knn_imputer.fit(train_matrix_Nfilled)
+
+    train_matrix_fill = train_matrix_Nfilled.copy() 
+    test_matrix_fill = test_matrix_Nfilled.copy() 
     
     # fill train and test matrixes with fitted imputer
-    train_matrix_fill = knn_imputer.transform(train_matrix_Nfilled)
-    test_matrix_fill = knn_imputer.transform(test_matrix_Nfilled)
+    train_matrix_fill[train_matrix_Nfilled.isna()] = knn_imputer.transform(train_matrix_Nfilled)
+    test_matrix_fill[test_matrix_Nfilled.isna()] = knn_imputer.transform(test_matrix_Nfilled)
 
     # transform to dataframe to save as matrix
     train_user_item_filled_df = panda.DataFrame(train_matrix_fill, index=train_matrix_Nfilled.index, columns=train_matrix_Nfilled.columns)
