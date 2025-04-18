@@ -9,7 +9,7 @@ import matplotlib.pyplot as matplot
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error,precision_score,recall_score
 import numpy
-from visualize_clusters import run_gmm_visualization
+from collections import defaultdict
 import data_preprocessing_updated as pre_process
 
 DATASET_DIR = "created_datasets"
@@ -37,12 +37,14 @@ def predict_rating(user_index, movie_col, user_cluster_prob, cluster_movie_means
     else:
         return numpy.nan
 
-def print_terminal_stats(cluster_nr,mae,rmse,precision,recall,user_clusters):
+def print_terminal_stats(cluster_nr,mae,rmse,precision,recall,user_clusters,precision_at,recall_at):
     print(f"\n Evluation at cluster {cluster_nr}) >")
     print(f"MAE: {mae:.4f}")
     print(f"RMSE: {rmse:.4f}")
     print(f"Precision: {precision:.4f}")
     print(f"Recall: {recall:.4f}")
+    print(f"Precision@K: {precision_at:.4f}")
+    print(f"Recall@K: {recall_at:.4f}")
 
     cluster_counts = collections.Counter(user_clusters)
     print("Cluster sizes:", dict(cluster_counts))
@@ -107,7 +109,7 @@ def plot_heatmap(run_nr,test_cluster_prob,cluster_nr):
 
 def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_state,pca_rand_state,min_n,max_n):
     max_itr = 500
-    relevant_trhold = 3.0
+    relevant_trhold = 4.0
     pca_comp = 2
 
     metrics_per_k = {
@@ -115,7 +117,9 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
         "MAE": [],
         "RMSE": [],
         "Precision": [],
-        "Recall": []
+        "Recall": [],
+        "Precision_topN":[],
+        "Recall_topN" : []
     }
 
     for cluster_nr in range(min_n, max_n):
@@ -141,11 +145,6 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
         # Get soft probability 
         test_cluster_prob = gmm.predict_proba(test_matrix_pca)
         print("Predicted soft prob >")
-        sum = numpy.sum(test_cluster_prob, axis=1)
-        if numpy.allclose(sum, 1.0):
-            print("YAY, all close to 1.")
-        else:
-            print("uh oh, not all close to one!")
 
 
         #plot confidence map and heatmap of probabilities
@@ -164,7 +163,9 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
                 movie_means_per_cluster[cluster] = users_in_cluster.mean(skipna=True)
         
 
-        # predict ratings for users
+        # predict ratings for users, save for use in TOP-N measurement
+        user_predictions = defaultdict(dict)
+
         true_ratings = []
         predicted_ratings = []
 
@@ -179,6 +180,47 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
                         true_ratings.append(true_rating)
                         predicted_ratings.append(pred_rating)
 
+                        # save for later during top_n computation
+                        user_predictions[user_id][movie_id] = {
+                            "true": true_rating,
+                            "pred": pred_rating
+                        }
+        
+        TOP_N = 10 
+
+        precision_at_k_total = 0
+        recall_at_k_total = 0
+        users_evaluated = 0
+
+        for user_id, rating_dict in user_predictions.items():
+
+            if len(rating_dict) >= TOP_N:
+                
+                #sort by predicted ratings highest
+                sorted_movies = sorted(rating_dict.items(), key=lambda x: x[1]["pred"], reverse=True)
+                top_N_movies = sorted_movies[:TOP_N]
+                top_N_movie_ids = [movie_id for movie_id, _ in top_N_movies]
+
+                #put in the movies that pass the relevant treshold
+                relevant_movies = sum(1 for movie_id in top_N_movie_ids if rating_dict[movie_id]["true"] >= relevant_trhold)
+                
+                #how many movies, beyond top N, are relevant?
+                total_relevant = sum(1 for movie_data in rating_dict.values() if movie_data["true"] >= relevant_trhold)
+
+                #calculate precision for top N for this user
+                precision_at_k_total += relevant_movies / TOP_N
+                #calculate recall for this particular user
+                recall_at_k_total += relevant_movies / total_relevant if total_relevant > 0 else 0
+                users_evaluated += 1
+
+        # find the exact precision and recall at k
+        if users_evaluated > 0:
+            precision_at_k = precision_at_k_total / users_evaluated
+            recall_at_k = recall_at_k_total / users_evaluated
+        else:
+            precision_at_k = 0
+            recall_at_k = 0
+
         # calculate metrix
         mae = mean_absolute_error(y_true=true_ratings, y_pred= predicted_ratings)
         rmse = root_mean_squared_error(y_true= true_ratings,y_pred= predicted_ratings)
@@ -188,6 +230,7 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
         true_bin = [1 if rating >= relevant_trhold else 0 for rating in true_ratings]
         pred_bin = [1 if rating >= relevant_trhold else 0 for rating in predicted_ratings]
 
+        #calculate precision and recal for the entire test
         precision = precision_score(true_bin, pred_bin, zero_division=0)
         recall = recall_score(true_bin, pred_bin, zero_division=0)
 
@@ -197,9 +240,11 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
         metrics_per_k["RMSE"].append(rmse)
         metrics_per_k["Precision"].append(precision)
         metrics_per_k["Recall"].append(recall)
+        metrics_per_k["Precision_topN"].append(precision_at_k)
+        metrics_per_k["Recall_topN"].append(recall_at_k)
 
         # print data for this cluster k in the terminal
-        print_terminal_stats(cluster_nr,mae,rmse,precision,recall,user_clusters)
+        print_terminal_stats(cluster_nr,mae,rmse,precision,recall,user_clusters,precision_at_k,recall_at_k)
 
         
     #plot the metrics into pictures
@@ -210,6 +255,7 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
 
 def join_path(directory,file):
     return os.path.join(directory,file)
+
 #MAIN#
 
 #constant for train/test ration, for consistency
@@ -224,17 +270,17 @@ GMM_ITER = 500
 #pca component set at 2 for consistency
 PCA_COMP = 2
 
-#MAKE DATASETS FOR RUN 1 - 
+#MAKE DATASETS FOR RUN 
 def create_ds_run_gm(run_nr,sample_rand_sta,split_rand_sta,gmm_rand_sta,pca_rand_sta, max_clusters):
     filename_dup_rm = f"ratings_dup_removed_run_{run_nr}"
     pre_process.check_duplicates("datasets/ratings.csv",f"{filename_dup_rm}")
     pre_process.plot_distribution_dataset(f"{join_path(DATASET_DIR,filename_dup_rm)}.csv",f"data_set_dup_rm_distribution_run_{run_nr}")
 
-    sampled_file_name = "sampled_dataset_run_1"
+    sampled_file_name = f"sampled_dataset_run_{run_nr}"
     pre_process.operation_data_sampling(f"{join_path(DATASET_DIR,filename_dup_rm)}.csv",sampled_file_name,0.7,sample_rand_sta)
     pre_process.plot_distribution_dataset(f"{join_path(DATASET_DIR,sampled_file_name)}.csv",f"data_set_sampled_distribution_run_{run_nr}")
 
-    #remove low ratings
+    ##remove low ratings
     pre_process.remove_low_ratings(f"{join_path(DATASET_DIR,sampled_file_name)}.csv",20,20)
 
     #split into train/test
@@ -247,7 +293,7 @@ def create_ds_run_gm(run_nr,sample_rand_sta,split_rand_sta,gmm_rand_sta,pca_rand
     pre_process.create_sparse_matrix(f"{join_path(DATASET_DIR,test_file)}.csv",sparse_test_mat)
 
     #create matrixes, fill with knn imputation, save
-    ##do not run this if imputed matrixes exist already, this is expensive
+    #do not run this if imputed matrixes exist already, this is expensive
     knn_imputed_file = f"run_{run_nr}_knn_imputed"
     train_file_path = join_path(DATASET_DIR,f"{train_file}.csv")
 
@@ -262,7 +308,7 @@ def create_ds_run_gm(run_nr,sample_rand_sta,split_rand_sta,gmm_rand_sta,pca_rand
     sparse_test_mat_path = join_path(DATASET_DIR,f"{sparse_test_mat}.csv")
 
     pre_process.test_bic_aic(filled_train_mat,
-                            "bic_aic_results",GMM_ITER,gmm_rand_sta,pca_rand_sta,PCA_COMP,max_clusters,1)
+                            "bic_aic_results",GMM_ITER,gmm_rand_sta,pca_rand_sta,PCA_COMP,max_clusters,run_nr)
 
     run_gmm(filled_train_mat,filled_test_mat,sparse_test_mat_path,run_nr,gmm_rand_sta,pca_rand_sta,2,max_clusters)
 
