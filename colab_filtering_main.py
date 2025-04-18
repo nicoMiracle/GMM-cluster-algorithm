@@ -10,6 +10,12 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error,precision_score,recall_score
 import numpy
 from visualize_clusters import run_gmm_visualization
+import data_preprocessing_updated as pre_process
+
+DATASET_DIR = "created_datasets"
+PLOT_DIR = "plot_distributions"
+FILLED_PLOT_DIR = "filled_plot_distributions"
+BIC_AIC_DIR = "bic_aic_results"
 
 def predict_rating(user_index, movie_col, user_cluster_prob, cluster_movie_means):
 
@@ -102,7 +108,7 @@ def plot_heatmap(run_nr,test_cluster_prob,cluster_nr):
 def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_state,pca_rand_state,min_n,max_n):
     max_itr = 500
     relevant_trhold = 3.0
-    pca_comp = 0.1
+    pca_comp = 2
 
     metrics_per_k = {
         "k": [],
@@ -132,9 +138,15 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
         gmm.fit(train_matrix_pca)
         print("GMM fitted >")
 
-        # Get hard clustering and soft probability 
+        # Get soft probability 
         test_cluster_prob = gmm.predict_proba(test_matrix_pca)
         print("Predicted soft prob >")
+        sum = numpy.sum(test_cluster_prob, axis=1)
+        if numpy.allclose(sum, 1.0):
+            print("YAY, all close to 1.")
+        else:
+            print("uh oh, not all close to one!")
+
 
         #plot confidence map and heatmap of probabilities
         plot_confidence(run_nr,test_cluster_prob,cluster_nr)
@@ -194,10 +206,70 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
     plot_metrics(metrics_per_k,f"metrics_run_{run_nr}",f"test_results_run_{run_nr}")
     #create CSV file with the numbers for later use
     metrics_df = panda.DataFrame(metrics_per_k)
-    metrics_df.to_csv(f"metrics_run_{run_nr}", index=False)
+    metrics_df.to_csv(f"metrics_run_{run_nr}.csv", index=False)
 
-
+def join_path(directory,file):
+    return os.path.join(directory,file)
 #MAIN#
 
-run_gmm("created_datasets/mean_imputed_train.csv","created_datasets/mean_imputed_test.csv",
-        "created_datasets\sparse_test_matrix.csv",1,42,42,10,15)
+#constant for train/test ration, for consistency
+TRAIN_TEST_SPLIT = 0.2
+
+#neighbours value will be set to 5 for consistency
+KNN_NEIGH = 8
+
+#keep gmm iterations at 500 for consistency
+GMM_ITER = 500
+
+#pca component set at 2 for consistency
+PCA_COMP = 2
+
+#MAKE DATASETS FOR RUN 1 - 
+def create_ds_run_gm(run_nr,sample_rand_sta,split_rand_sta,gmm_rand_sta,pca_rand_sta, max_clusters):
+    filename_dup_rm = f"ratings_dup_removed_run_{run_nr}"
+    pre_process.check_duplicates("datasets/ratings.csv",f"{filename_dup_rm}")
+    pre_process.plot_distribution_dataset(f"{join_path(DATASET_DIR,filename_dup_rm)}.csv",f"data_set_dup_rm_distribution_run_{run_nr}")
+
+    sampled_file_name = "sampled_dataset_run_1"
+    pre_process.operation_data_sampling(f"{join_path(DATASET_DIR,filename_dup_rm)}.csv",sampled_file_name,0.7,sample_rand_sta)
+    pre_process.plot_distribution_dataset(f"{join_path(DATASET_DIR,sampled_file_name)}.csv",f"data_set_sampled_distribution_run_{run_nr}")
+
+    #remove low ratings
+    pre_process.remove_low_ratings(f"{join_path(DATASET_DIR,sampled_file_name)}.csv",20,20)
+
+    #split into train/test
+    train_file = f"train_ds_{run_nr}"
+    test_file = f"test_ds_{run_nr}"
+    pre_process.split_train_test(f"{join_path(DATASET_DIR,sampled_file_name)}.csv",train_file,test_file,split_rand_sta,TRAIN_TEST_SPLIT)
+
+    #create sparse test matrix for prediction
+    sparse_test_mat = f"sparse_tes_mat_{run_nr}"
+    pre_process.create_sparse_matrix(f"{join_path(DATASET_DIR,test_file)}.csv",sparse_test_mat)
+
+    #create matrixes, fill with knn imputation, save
+    ##do not run this if imputed matrixes exist already, this is expensive
+    knn_imputed_file = f"run_{run_nr}_knn_imputed"
+    train_file_path = join_path(DATASET_DIR,f"{train_file}.csv")
+
+    test_file_path = join_path(DATASET_DIR,f"{test_file}.csv")
+
+    pre_process.fill_matrix_knn(train_file_path,test_file_path,
+                                knn_imputed_file,KNN_NEIGH)
+
+
+    filled_train_mat = join_path(DATASET_DIR,f"{knn_imputed_file}_train.csv")
+    filled_test_mat = join_path(DATASET_DIR,f"{knn_imputed_file}_test.csv")
+    sparse_test_mat_path = join_path(DATASET_DIR,f"{sparse_test_mat}.csv")
+
+    pre_process.test_bic_aic(filled_train_mat,
+                            "bic_aic_results",GMM_ITER,gmm_rand_sta,pca_rand_sta,PCA_COMP,max_clusters,1)
+
+    run_gmm(filled_train_mat,filled_test_mat,sparse_test_mat_path,run_nr,gmm_rand_sta,pca_rand_sta,2,max_clusters)
+
+
+# run 1
+create_ds_run_gm(1,2,10,20,15,51)
+#run 2
+create_ds_run_gm(2,13,40,42,25,51)
+#run 3
+create_ds_run_gm(3,12,6,31,3,51)

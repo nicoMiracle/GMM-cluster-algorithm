@@ -38,6 +38,7 @@ def operation_data_sampling(dataset_path, file_name, fraction_value, rand_sta_va
     sampled_portion = sampled_portion.drop(columns=['rating_bins','TimeStamp'])
 
     os.makedirs(DATASET_DIR,exist_ok=True)
+
     sampled_portion.to_csv(os.path.join(DATASET_DIR,f"{file_name}.csv"), index=False)
 
 #remove low ratings below 20 for users and movies
@@ -75,6 +76,7 @@ def fill_matrix_knn(train_dataset_path, test_dataset_path, output_file_name, knn
         columns="MovieID",
         values="Rating"
     )
+    test_matrix_Nfilled = test_matrix_Nfilled.reindex(columns=train_matrix_Nfilled.columns)
     
     knn_imputer = KNNImputer(n_neighbors=knn_imputer_neighbors)
 
@@ -125,6 +127,7 @@ def fill_matrix_mean(train_dataset_path, test_dataset_path, output_file_name):
         columns="MovieID",
         values="Rating"
     )
+    test_matrix_Nfilled = test_matrix_Nfilled.reindex(columns=train_matrix_Nfilled.columns)
     
     simp_imputer = SimpleImputer(strategy="mean")
 
@@ -214,15 +217,26 @@ def split_train_test(datasetPath,train_file_name,test_file_name,rand_sta,test_sz
     train_df, test_df = train_test_split(dataset, test_size=test_sz, random_state=rand_sta)
 
     #save the train and test datasets
-    train_df.to_csv(os.path.join(DATASET_DIR,train_file_name), index=False)
-    test_df.to_csv(os.path.join(DATASET_DIR,test_file_name), index=False)
+    train_df.to_csv(os.path.join(DATASET_DIR,f"{train_file_name}.csv"), index=False)
+    test_df.to_csv(os.path.join(DATASET_DIR,f"{test_file_name}.csv"), index=False)
 
 
-def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta,pca_components,max_gmm_comp,run_nr):
+def create_sparse_matrix(dataset_path,file_name):
+    os.makedirs(DATASET_DIR,exist_ok=True)
+    dataset = panda.read_csv(dataset_path)
+
+    matrix = dataset.pivot_table(
+    index="UserID",
+    columns="MovieID",
+    values="Rating")
+    matrix.to_csv(os.path.join(DATASET_DIR,f"{file_name}.csv"))
+
+
+def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta_gmm,rand_sta_pca,pca_components,max_gmm_comp,run_nr):
     train_dataset = panda.read_csv(dataset_path,index_col=0)
 
     #fit into PCA
-    pca = PCA(n_components=pca_components,random_state=rand_sta)  # keep 95% of variance
+    pca = PCA(n_components=pca_components,random_state=rand_sta_pca)  
     
     values = train_dataset.values
     transformed_matrix = pca.fit_transform(values)
@@ -234,7 +248,7 @@ def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta,pca_components,max_gmm_c
 
     for n in clust_numbers:
         print(f"Fitting GMM with n >")
-        gmm = GaussianMixture(n_components=n, covariance_type='full', max_iter=max_itr, random_state=rand_sta)
+        gmm = GaussianMixture(n_components=n, covariance_type='full', max_iter=max_itr, random_state=rand_sta_gmm)
         gmm.fit(transformed_matrix)
 
         bic.append(gmm.bic(transformed_matrix))
@@ -255,8 +269,9 @@ def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta,pca_components,max_gmm_c
     matplot.savefig(fig_path)
     matplot.close()
 
+    metrics_df = panda.DataFrame({
+        'BIC': bic,
+        'AIC': aic
+    })
+    metrics_df.to_csv(os.path.join(BIC_AIC_DIR,f"BIC-AIC_for_{run_nr}.csv"))
 
-fill_matrix_mean(f"{DATASET_DIR}/training_set.csv",f"{DATASET_DIR}/test_set.csv","mean_imputed")
-
-plot_filled_rating_distribution(f"{DATASET_DIR}/mean_imputed_train.csv","mean_training_filled")
-plot_filled_rating_distribution(f"{DATASET_DIR}/mean_imputed_test.csv","mean_test_filled")
