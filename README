@@ -1,5 +1,3 @@
 1. create virual environment
-2. add scikit-learn, numpy, pandas, matplotlib, seaborn, jupyter, wheel, cython, setuptools, scipy, scikit-surprise dependencies
-3. scikit-surprise works on python 3.9.9
-4. install Microsoft C++ Build Tools - Desktop development with C++ (check a lot of stuff)
-5. Run first data_preprocessing.py to save processed data as csv files and avoid running it again 
+2. add all dependencies by running "pip install -r requirements.txt" in the terminal
+3. Only run "colab_filtering_main.py" as is and wait, it will take hours, adjust as wanted to do less clusters
