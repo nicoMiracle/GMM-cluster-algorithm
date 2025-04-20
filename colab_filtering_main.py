@@ -1,15 +1,15 @@
 #nicole nechita rone8293
-
-import collections
-import pandas as panda
 import os
+import collections
+import numpy
+from collections import defaultdict
+import pandas as panda
 import seaborn as sns
 from sklearn.mixture import GaussianMixture
 import matplotlib.pyplot as matplot
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error,precision_score,recall_score
-import numpy
-from collections import defaultdict
+
 import data_preprocessing_updated as pre_process
 
 DATASET_DIR = "created_datasets"
@@ -293,7 +293,7 @@ def create_ds_run_gm(run_nr,sample_rand_sta,split_rand_sta,gmm_rand_sta,pca_rand
     sparse_test_mat_path = join_path(DATASET_DIR,f"{sparse_test_mat}.csv")
 
     pre_process.test_bic_aic(filled_train_mat,
-                           "bic_aic_results",GMM_ITER,gmm_rand_sta,pca_rand_sta,4,max_clusters,run_nr)
+                           "bic_aic_results",GMM_ITER,gmm_rand_sta,pca_rand_sta,PCA_COMP,max_clusters,run_nr)
 
     run_gmm(filled_train_mat,filled_test_mat,sparse_test_mat_path,run_nr,gmm_rand_sta,pca_rand_sta,2,max_clusters)
 
