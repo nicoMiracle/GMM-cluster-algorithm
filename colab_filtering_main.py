@@ -68,20 +68,6 @@ def plot_metrics(metrics_list,metric_dir, save_prefix):
         filename = os.path.join(metric_dir,f"{save_prefix}_{metric.lower()}.png")
         matplot.savefig(filename)
 
-#check the distribution of probabilities across users
-def plot_confidence (run_nr,test_cluster_prob,cluster_nr):
-    os.makedirs(f"confidence_map_run {run_nr}",exist_ok=True)
-    max_probs = test_cluster_prob.max(axis=1)
-    matplot.clf()
-    matplot.hist(max_probs, bins=20, color='mediumpurple', edgecolor='black')
-    matplot.title(f"Cluster confidence k = {cluster_nr}")
-    matplot.xlabel("Highest Cluster Probability")
-    matplot.ylabel("Number of Users")
-    filename = os.path.join(f"confidence_map_run {run_nr}",f"confidence at k{cluster_nr}.png")
-    matplot.savefig(filename)
-    matplot.grid(True)
-    matplot.close()
-
 #plot the heatmap for each run at each value k in gmm, to check probability distribution
 def plot_heatmap(run_nr,test_cluster_prob,cluster_nr):
 
@@ -147,8 +133,7 @@ def run_gmm(train_matrix_path,test_matrix_path,sparse_test_path,run_nr,gmm_rand_
         print("Predicted soft prob >")
 
 
-        #plot confidence map and heatmap of probabilities
-        plot_confidence(run_nr,test_cluster_prob,cluster_nr)
+        #plot heatmap of probabilities
         plot_heatmap(run_nr,test_cluster_prob,cluster_nr)
         print("Plots plotted >")
         
@@ -261,7 +246,7 @@ def join_path(directory,file):
 #constant for train/test ration, for consistency
 TRAIN_TEST_SPLIT = 0.2
 
-#neighbours value will be set to 5 for consistency
+#neighbours value will be set to 8 for consistency
 KNN_NEIGH = 8
 
 #keep gmm iterations at 500 for consistency
@@ -280,7 +265,7 @@ def create_ds_run_gm(run_nr,sample_rand_sta,split_rand_sta,gmm_rand_sta,pca_rand
     pre_process.operation_data_sampling(f"{join_path(DATASET_DIR,filename_dup_rm)}.csv",sampled_file_name,0.7,sample_rand_sta)
     pre_process.plot_distribution_dataset(f"{join_path(DATASET_DIR,sampled_file_name)}.csv",f"data_set_sampled_distribution_run_{run_nr}")
 
-    ##remove low ratings
+    #remove low ratings
     pre_process.remove_low_ratings(f"{join_path(DATASET_DIR,sampled_file_name)}.csv",20,20)
 
     #split into train/test
@@ -300,7 +285,7 @@ def create_ds_run_gm(run_nr,sample_rand_sta,split_rand_sta,gmm_rand_sta,pca_rand
     test_file_path = join_path(DATASET_DIR,f"{test_file}.csv")
 
     pre_process.fill_matrix_knn(train_file_path,test_file_path,
-                                knn_imputed_file,KNN_NEIGH)
+                              knn_imputed_file,KNN_NEIGH)
 
 
     filled_train_mat = join_path(DATASET_DIR,f"{knn_imputed_file}_train.csv")
@@ -308,7 +293,7 @@ def create_ds_run_gm(run_nr,sample_rand_sta,split_rand_sta,gmm_rand_sta,pca_rand
     sparse_test_mat_path = join_path(DATASET_DIR,f"{sparse_test_mat}.csv")
 
     pre_process.test_bic_aic(filled_train_mat,
-                            "bic_aic_results",GMM_ITER,gmm_rand_sta,pca_rand_sta,PCA_COMP,max_clusters,run_nr)
+                           "bic_aic_results",GMM_ITER,gmm_rand_sta,pca_rand_sta,4,max_clusters,run_nr)
 
     run_gmm(filled_train_mat,filled_test_mat,sparse_test_mat_path,run_nr,gmm_rand_sta,pca_rand_sta,2,max_clusters)
 

@@ -2,7 +2,7 @@
 import os
 import pandas as panda
 import seaborn
-from sklearn.impute import KNNImputer, SimpleImputer
+from sklearn.impute import KNNImputer
 from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as matplot
@@ -109,58 +109,6 @@ def fill_matrix_knn(train_dataset_path, test_dataset_path, output_file_name, knn
     train_user_item_filled_df.to_csv(os.path.join(DATASET_DIR,f"{output_file_name}_train.csv"))
     test_user_item_filled_df.to_csv(os.path.join(DATASET_DIR,f"{output_file_name}_test.csv"))
 
-def fill_matrix_mean(train_dataset_path, test_dataset_path, output_file_name):
-    #load the datasets
-    train_dataset = panda.read_csv(train_dataset_path)
-    test_dataset = panda.read_csv(test_dataset_path)
-    
-    #create the train matrix for filling
-    train_matrix_Nfilled = train_dataset.pivot_table(
-        index="UserID",
-        columns="MovieID",
-        values="Rating"
-    )
-    
-    #create the test matrix for filling
-    test_matrix_Nfilled = test_dataset.pivot_table(
-        index="UserID",
-        columns="MovieID",
-        values="Rating"
-    )
-    test_matrix_Nfilled = test_matrix_Nfilled.reindex(columns=train_matrix_Nfilled.columns)
-    
-    simp_imputer = SimpleImputer(strategy="mean")
-
-    #preserve previous ratings by copy
-    train_matrix_fill = train_matrix_Nfilled.copy() 
-    test_matrix_fill = test_matrix_Nfilled.copy()  
-    
-    #fit the imputer
-    simp_imputer.fit(train_matrix_Nfilled)
-    
-    # apply the imputer, not overwritting previous ratings
-    train_matrix_fill[train_matrix_Nfilled.isna()] = simp_imputer.transform(train_matrix_Nfilled)
-    test_matrix_fill[test_matrix_Nfilled.isna()] = simp_imputer.transform(test_matrix_Nfilled)
-
-    # transform to dataframe to save as matrix
-    train_user_item_filled_df = panda.DataFrame(train_matrix_fill, index=train_matrix_Nfilled.index, columns=train_matrix_Nfilled.columns)
-    test_user_item_filled_df = panda.DataFrame(test_matrix_fill, index=test_matrix_Nfilled.index, columns=test_matrix_Nfilled.columns)
-
-    #check the results
-    print(f"count train ratings pre-fill: {train_matrix_Nfilled.notna().sum().sum()}")
-    print(f"count test ratings pre-fill: {test_matrix_Nfilled.notna().sum().sum()}")
-    
-    #check for amount of missing values post-fill
-    miss_train_count = train_user_item_filled_df.isnull().sum().sum()
-    miss_test_count = test_user_item_filled_df.isnull().sum().sum()
-    print(f"missing values in train matrix post-fill: {miss_train_count}")
-    print(f"missing values in test matrix post-fill: {miss_test_count}")
-
-    #save to csv file, use index_col=0 when reading later
-    os.makedirs(DATASET_DIR,exist_ok=True)
-    train_user_item_filled_df.to_csv(os.path.join(DATASET_DIR,f"{output_file_name}_train.csv"))
-    test_user_item_filled_df.to_csv(os.path.join(DATASET_DIR,f"{output_file_name}_test.csv"))
-
 #check the distribution of a dataset - how many rated 1-2-3-4-5
 def plot_distribution_dataset(dataset_path, fig_name):
     dataset = panda.read_csv(dataset_path)
@@ -172,29 +120,6 @@ def plot_distribution_dataset(dataset_path, fig_name):
     seaborn.histplot(dataset['Rating'], kde=False, discrete=True, bins=20, color="red")
     matplot.title(fig_name)
     matplot.savefig(os.path.join(PLOT_DIR,f"{fig_name}.png"), dpi=300)
-    matplot.close()
-
-def plot_filled_rating_distribution(filled_matrix_path, filename):
-    
-    filled_df = panda.read_csv(filled_matrix_path, index_col=0)
-    filled_ratings = filled_df.values.flatten()
-    filled_ratings = filled_ratings[~numpy.isnan(filled_ratings)]
-
-    # Create save directory if needed
-    os.makedirs(FILLED_PLOT_DIR, exist_ok=True)
-
-    # Plot
-    matplot.clf()
-    matplot.figure(figsize=[12,8])
-    matplot.hist(filled_ratings, bins=30, color='cornflowerblue', edgecolor='black')
-    matplot.title("Distribution of Filled Ratings")
-    matplot.xlabel("Rating")
-    matplot.ylabel("Frequency")
-    matplot.grid(True)
-    matplot.tight_layout()
-
-    save_path = os.path.join(FILLED_PLOT_DIR, f"{filename}.png")
-    matplot.savefig(save_path)
     matplot.close()
 
 
