@@ -1,4 +1,3 @@
-#nicole nechita rone8293
 import os
 import pandas as panda
 import seaborn
@@ -11,8 +10,8 @@ import numpy
 
 DATASET_DIR = "created_datasets"
 PLOT_DIR = "plot_distributions"
-FILLED_PLOT_DIR = "filled_plot_distributions"
 BIC_AIC_DIR = "bic_aic_results"
+STEP = 1
 
 #remove duplicates and save
 def check_duplicates(dataset_path,dataset_file_name):
@@ -31,9 +30,13 @@ def operation_data_sampling(dataset_path, file_name, fraction_value, rand_sta_va
 
     dataset = panda.read_csv(dataset_path)
 
-    dataset['rating_bins'] = panda.cut(dataset['Rating'], bins=[1, 2, 3, 4, 5], include_lowest=True)
+    dataset['rating_bins'] = panda.cut(
+        dataset['Rating'], bins=[1, 2, 3, 4, 5], include_lowest=True)
 
-    sampled_portion = dataset.groupby('rating_bins', group_keys=False).apply(lambda x: x.sample(frac=fraction_value, random_state=rand_sta_value))
+    sampled_portion = dataset.groupby(
+        'rating_bins', group_keys=False).apply(
+        lambda x: x.sample(
+            frac=fraction_value, random_state=rand_sta_value))
 
     sampled_portion = sampled_portion.drop(columns=['rating_bins','TimeStamp'])
 
@@ -51,7 +54,8 @@ def remove_low_ratings(dataset_path, min_ratings_user,min_ratings_movie):
     dataset = dataset[dataset['UserID'].isin(active_users)]
 
     movie_counts = dataset['MovieID'].value_counts()
-    popular_movies = movie_counts[movie_counts >= min_ratings_movie].index
+    popular_movies =movie_counts[
+        movie_counts >= min_ratings_movie].index
     dataset = dataset[dataset['MovieID'].isin(popular_movies)]
 
     dataset.to_csv(dataset_path, index=False)
@@ -91,8 +95,12 @@ def fill_matrix_knn(train_dataset_path, test_dataset_path, output_file_name, knn
     test_matrix_fill[test_matrix_Nfilled.isna()] = knn_imputer.transform(test_matrix_Nfilled)
 
     # transform to dataframe to save as matrix
-    train_user_item_filled_df = panda.DataFrame(train_matrix_fill, index=train_matrix_Nfilled.index, columns=train_matrix_Nfilled.columns)
-    test_user_item_filled_df = panda.DataFrame(test_matrix_fill, index=test_matrix_Nfilled.index, columns=test_matrix_Nfilled.columns)
+    train_user_item_filled_df = panda.DataFrame(
+        train_matrix_fill, index=train_matrix_Nfilled.index, 
+        columns=train_matrix_Nfilled.columns)
+    test_user_item_filled_df = panda.DataFrame(
+        test_matrix_fill, index=test_matrix_Nfilled.index,
+        columns=test_matrix_Nfilled.columns)
 
     #check the results
     print(f"count train ratings pre-fill: {train_matrix_Nfilled.notna().sum().sum()}")
@@ -101,6 +109,7 @@ def fill_matrix_knn(train_dataset_path, test_dataset_path, output_file_name, knn
     #check for amount of missing values post-fill
     miss_train_count = train_user_item_filled_df.isnull().sum().sum()
     miss_test_count = test_user_item_filled_df.isnull().sum().sum()
+
     print(f"missing values in train matrix post-fill: {miss_train_count}")
     print(f"missing values in test matrix post-fill: {miss_test_count}")
 
@@ -139,13 +148,15 @@ def split_train_test(datasetPath,train_file_name,test_file_name,rand_sta,test_sz
     os.makedirs(DATASET_DIR,exist_ok=True)
 
     dataset = panda.read_csv(datasetPath)
-    train_df, test_df = train_test_split(dataset, test_size=test_sz, random_state=rand_sta)
+    train_df, test_df = train_test_split(
+        dataset, test_size=test_sz, random_state=rand_sta)
 
     #save the train and test datasets
     train_df.to_csv(os.path.join(DATASET_DIR,f"{train_file_name}.csv"), index=False)
     test_df.to_csv(os.path.join(DATASET_DIR,f"{test_file_name}.csv"), index=False)
 
 
+#create sparse matrix, without imputation
 def create_sparse_matrix(dataset_path,file_name):
     os.makedirs(DATASET_DIR,exist_ok=True)
     dataset = panda.read_csv(dataset_path)
@@ -158,6 +169,7 @@ def create_sparse_matrix(dataset_path,file_name):
 
 
 def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta_gmm,rand_sta_pca,pca_components,max_gmm_comp,run_nr):
+    
     train_dataset = panda.read_csv(dataset_path,index_col=0)
 
     #fit into PCA
@@ -166,13 +178,13 @@ def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta_gmm,rand_sta_pca,pca_com
     values = train_dataset.values
     transformed_matrix = pca.fit_transform(values)
 
-    clust_numbers = numpy.arange(1,max_gmm_comp)
+    clust_numbers = numpy.arange(2,max_gmm_comp,STEP)
 
     bic = []
     aic= []
 
-    for n in clust_numbers:
-        print(f"Fitting GMM with n >")
+    for n in range(2,max_gmm_comp,STEP):
+        #fit GMM
         gmm = GaussianMixture(n_components=n, covariance_type='full', max_iter=max_itr, random_state=rand_sta_gmm)
         gmm.fit(transformed_matrix)
 
@@ -187,7 +199,7 @@ def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta_gmm,rand_sta_pca,pca_com
     matplot.plot(clust_numbers, aic, label='AIC', marker='o')
     matplot.xlabel('Number of Clusters')
     matplot.ylabel('Score')
-    matplot.title('BIC and AIC results for given dataset')
+    matplot.title(f'BIC and AIC results for given dataset - run {run_nr} ')
     matplot.legend()
     matplot.grid(True)
     fig_path = os.path.join(BIC_AIC_DIR,f"{fig_name}_{run_nr}.png")
@@ -199,4 +211,3 @@ def test_bic_aic(dataset_path,fig_name,max_itr,rand_sta_gmm,rand_sta_pca,pca_com
         'AIC': aic
     })
     metrics_df.to_csv(os.path.join(BIC_AIC_DIR,f"BIC-AIC_for_{run_nr}.csv"))
-
